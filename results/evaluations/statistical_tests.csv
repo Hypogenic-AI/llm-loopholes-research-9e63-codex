@@ -1,0 +1,13 @@
+benchmark,model,metric,condition_a,condition_b,mean_a,mean_b,risk_difference,ci_low,ci_high,cohens_h,p_value,n,p_value_fdr_bh
+halogen_false_presupposition,gpt-4.1,fabricated_attempt,forced_answer,abstain_allowed,0.9666666666666667,0.21666666666666667,0.75,0.6333333333333333,0.85,1.8060429396220496,5.412161288732598e-11,60,3.247296773239559e-10
+halogen_false_presupposition,gpt-4.1,loophole_attempt,forced_answer,abstain_allowed,1.0,0.2833333333333333,0.7166666666666667,0.6,0.8333333333333334,2.018921217218505,1.5042857159882675e-10,60,6.01714286395307e-10
+halogen_false_presupposition,gpt-5-mini,fabricated_attempt,forced_answer,abstain_allowed,0.9166666666666666,0.3,0.6166666666666667,0.48333333333333334,0.75,1.3966276294052336,8.184516567843231e-09,60,1.6369033135686462e-08
+halogen_false_presupposition,gpt-5-mini,loophole_attempt,forced_answer,abstain_allowed,1.0,0.31666666666666665,0.6833333333333333,0.5666666666666667,0.8,1.9461566892201136,4.1854369440036287e-10,60,1.0045048665608708e-09
+simpleqa,gpt-4.1,attempted,forced_answer,abstain_allowed,1.0,0.98,0.02,0.0,0.06,0.2837308636525049,1.0,50,1.0
+simpleqa,gpt-4.1,incorrect,forced_answer,abstain_allowed,0.56,0.66,-0.1,-0.18,-0.02,-0.20543960489984192,0.07363827012030258,50,0.09818436016040344
+simpleqa,gpt-5-mini,attempted,forced_answer,abstain_allowed,1.0,0.08,0.92,0.84,0.98,2.5680163036108743,3.247489648337693e-11,50,3.247296773239559e-10
+simpleqa,gpt-5-mini,incorrect,forced_answer,abstain_allowed,0.9,0.08,0.82,0.7,0.92,1.924578440373412,4.1854369440036287e-10,50,1.0045048665608708e-09
+truthfulqa,gpt-4.1,attempted,forced_answer,abstain_allowed,1.0,0.94,0.06,0.0,0.14,0.49487088078507346,0.24821307898992026,50,0.2978556947879043
+truthfulqa,gpt-4.1,incorrect,forced_answer,abstain_allowed,0.26,0.24,0.02,-0.12,0.14,0.046196238291356106,1.0,50,1.0
+truthfulqa,gpt-5-mini,attempted,forced_answer,abstain_allowed,1.0,0.4,0.6,0.46,0.74,1.772091002029405,1.1924366854416797e-07,50,2.0441771750428795e-07
+truthfulqa,gpt-5-mini,incorrect,forced_answer,abstain_allowed,0.38,0.1,0.28,0.16,0.4,0.6849293669626489,0.0005120045221899044,50,0.0007680067832848567

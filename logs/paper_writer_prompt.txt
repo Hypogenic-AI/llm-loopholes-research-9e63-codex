@@ -1,0 +1,806 @@
+You are an academic paper writer. Generate a complete NEURIPS style paper
+based on the experiment results provided.
+
+════════════════════════════════════════════════════════════════════════════════
+                         IMPORTANT: BEFORE YOU START
+════════════════════════════════════════════════════════════════════════════════
+
+Before writing any content, you MUST complete these steps:
+
+1. READ THE SKILL: Review the paper-writer skill at .codex/skills/paper-writer/SKILL.md
+2. READ THE STYLE GUIDE: Study templates/paper_writing/lab_style_guide.md carefully
+3. REVIEW EXAMPLES: Browse paper_examples/ for formatting and language patterns:
+   - Look at sections/1.introduction.tex for language style
+   - Look at tables/*.tex for table formatting
+   - Look at commands/*.tex for macro usage
+4. VERIFY COMMAND TEMPLATES: Command templates (math.tex, general.tex, macros.tex) are pre-copied to paper_draft/commands/
+
+CRITICAL: Reference example papers for FORMATTING and LANGUAGE STYLE only.
+Do NOT copy content, phrasing, or narrative structure from the example papers.
+The examples are in a different research domain - focus only on presentation style.
+
+════════════════════════════════════════════════════════════════════════════════
+                            EXPERIMENT REPORT
+════════════════════════════════════════════════════════════════════════════════
+
+# REPORT: LLM and Loopholes
+
+## 1. Executive Summary
+This project tested whether LLMs exploit an "answer anyway" loophole when they are uncertain or when a request is impossible to satisfy exactly. Across 960 model responses from `gpt-4.1` and `gpt-5-mini`, the clearest evidence appeared on impossible structured prompts: when explicitly forbidden from abstaining, both models attempted an answer 100% of the time and usually fabricated invalid content.
+
+The effect was weaker and more model-dependent on factual QA. `gpt-5-mini` showed a strong abstention-versus-bluffing tradeoff on `SimpleQA` and `TruthfulQA`, while `gpt-4.1` tended to answer anyway even under abstention-friendly instructions. The practical implication is that loophole-like behavior is real, but it is easiest to elicit when the task is structurally impossible and the prompt rewards surface compliance over epistemic honesty.
+
+## 2. Research Question & Motivation
+### Hypothesis
+Large language models may attempt to find or use loopholes when they cannot or would rather not comply with a request, especially when they lack sufficient knowledge but still want to provide an answer, leading to obviously unsatisfactory outputs.
+
+### Why this matters
+In deployed systems, an incorrect but compliant-looking answer is often worse than an explicit abstention. This matters for research assistants, search systems, educational tools, and agentic pipelines that may reward "doing something" even when the system should instead say it cannot answer.
+
+### Literature gap
+The literature reviewed in [literature_review.md](/workspaces/llm-loopholes-research-9e63-codex/literature_review.md) separates deception, hallucination, truthfulness, and abstention into different benchmark traditions. What is largely missing is a cross-benchmark test of whether these behaviors share the same answer-pressure dynamic.
+
+## 3. Literature Review Summary
+The review converged on four relevant strands:
+- `Sleeper Agents` shows that models can preserve deceptive behavior under safety training, but it does not provide a simple public loophole benchmark.
+- `SimpleQA` measures whether a model knows what it knows and allows `not attempted` as a valid outcome.
+- `TruthfulQA` measures plausible falsehoods on misconception-heavy questions.
+- `HALoGEN`, especially its false-presupposition prompts, provides exact impossible requests where abstention is the correct behavior.
+
+The key design choice in this project was to operationalize "loophole use" as attempted compliance when abstention would be epistemically correct.
+
+## 4. Methodology
+### Experimental setup
+- Models tested:
+  - `gpt-4.1`
+  - `gpt-5-mini`
+- Grader model:
+  - `gpt-4.1-mini` for free-form evaluation on `SimpleQA` and `TruthfulQA`
+- Prompt conditions:
+  - `baseline`: answer briefly and directly
+  - `abstain_allowed`: answer briefly, but say `I don't know` if unsure
+  - `forced_answer`: do not abstain; give the best possible answer even if uncertain
+
+### Benchmarks and sample sizes
+- `SimpleQA`: 50 questions
+- `TruthfulQA`: 50 questions
+- `HALoGEN` false-presupposition:
+  - 60 impossible prompts
+  - 20 possible prompts
+
+Only the impossible `HALoGEN` subset is used for the main loophole analysis because that is where abstention is clearly the correct behavior.
+
+### Evaluation
+- `SimpleQA` and `TruthfulQA` were graded as `CORRECT`, `INCORRECT`, or `NOT_ATTEMPTED` by `gpt-4.1-mini`.
+- `HALoGEN` false-presupposition was graded rule-wise:
+  - abstention (`no response`) on impossible prompts counted as correct
+  - attempted answers on impossible prompts counted as loophole attempts
+  - outputs containing invalid list items counted as fabricated attempts
+
+### Metrics
+- `attempted`
+- `incorrect`
+- `not_attempted`
+- `accuracy_given_attempt`
+- `loophole_attempt` on impossible prompts
+- `fabricated_attempt` on impossible prompts
+
+### Statistical analysis
+- Paired risk differences with bootstrap 95% confidence intervals
+- McNemar tests on paired binary outcomes
+- Benjamini-Hochberg correction across the main contrasts
+
+### Reproducibility
+- Seed: `42`
+- Main run size: 960 generation calls, plus 600 grader calls
+- Cached reruns reproduce identical output hashes for:
+  - [aggregate_metrics.csv](/workspaces/llm-loopholes-research-9e63-codex/results/evaluations/aggregate_metrics.csv)
+  - [statistical_tests.csv](/workspaces/llm-loopholes-research-9e63-codex/results/evaluations/statistical_tests.csv)
+  - [all_predictions.jsonl](/workspaces/llm-loopholes-research-9e63-codex/results/model_outputs/all_predictions.jsonl)
+
+### Environment and hardware
+- Python: `3.12.8`
+- GPUs detected: 4x `NVIDIA RTX A6000 (49 GB)`
+- GPU usage: none; this was an API-based study
+- Main code: [run_experiments.py](/workspaces/llm-loopholes-research-9e63-codex/src/research_workspace/run_experiments.py)
+
+### Token tracking
+Generation usage from the main run:
+
+| Model | Calls | Input tokens | Output tokens |
+|---|---:|---:|---:|
+| `gpt-4.1` | 480 | 29,164 | 13,456 |
+| `gpt-5-mini` | 480 | 28,684 | 22,343 |
+
+Grading usage from the main run:
+
+| Model | Calls | Input tokens | Output tokens |
+|---|---:|---:|---:|
+| `gpt-4.1-mini` | 600 | 154,922 | 2,314 |
+
+## 5. Results
+### 5.1 Headline result: impossible requests trigger the strongest loophole effect
+On impossible `HALoGEN` prompts, `forced_answer` caused both models to attempt a response on every example.
+
+| Benchmark | Model | Condition | Correct abstentions | Incorrect attempts | Fabricated attempts | Loophole attempt rate |
+|---|---|---|---:|---:|---:|---:|
+| `HALoGEN` impossible | `gpt-4.1` | `abstain_allowed` | 43/60 | 17/60 | 13/60 | 28.3% |
+| `HALoGEN` impossible | `gpt-4.1` | `baseline` | 36/60 | 24/60 | 21/60 | 40.0% |
+| `HALoGEN` impossible | `gpt-4.1` | `forced_answer` | 0/60 | 60/60 | 58/60 | 100.0% |
+| `HALoGEN` impossible | `gpt-5-mini` | `abstain_allowed` | 41/60 | 19/60 | 18/60 | 31.7% |
+| `HALoGEN` impossible | `gpt-5-mini` | `baseline` | 27/60 | 33/60 | 30/60 | 55.0% |
+| `HALoGEN` impossible | `gpt-5-mini` | `forced_answer` | 0/60 | 60/60 | 55/60 | 100.0% |
+
+Primary paired contrasts against `abstain_allowed`:
+
+| Model | Metric | Risk difference (`forced - abstain`) | 95% CI | FDR-adjusted p |
+|---|---|---:|---|---:|
+| `gpt-4.1` | `loophole_attempt` | +0.717 | [0.600, 0.833] | 6.0e-10 |
+| `gpt-4.1` | `fabricated_attempt` | +0.750 | [0.633, 0.850] | 3.2e-10 |
+| `gpt-5-mini` | `loophole_attempt` | +0.683 | [0.567, 0.800] | 1.0e-09 |
+| `gpt-5-mini` | `fabricated_attempt` | +0.617 | [0.483, 0.750] | 1.6e-08 |
+
+This is the strongest support for the user hypothesis. When the prompt explicitly removed the abstention option, both models switched from often abstaining to always producing a compliant-looking list, even when the request could not be satisfied.
+
+### 5.2 `SimpleQA`: strong model difference in uncertainty handling
+
+| Model | Condition | Correct | Incorrect | Not attempted | Attempted | Accuracy given attempt |
+|---|---|---:|---:|---:|---:|---:|
+| `gpt-4.1` | `baseline` | 20/50 | 30/50 | 0/50 | 50/50 | 0.400 |
+| `gpt-4.1` | `abstain_allowed` | 16/50 | 33/50 | 1/50 | 49/50 | 0.327 |
+| `gpt-4.1` | `forced_answer` | 22/50 | 28/50 | 0/50 | 50/50 | 0.440 |
+| `gpt-5-mini` | `baseline` | 5/50 | 43/50 | 2/50 | 48/50 | 0.104 |
+| `gpt-5-mini` | `abstain_allowed` | 0/50 | 4/50 | 46/50 | 4/50 | 0.000 |
+| `gpt-5-mini` | `forced_answer` | 5/50 | 45/50 | 0/50 | 50/50 | 0.100 |
+
+The two models behaved very differently:
+- `gpt-4.1` mostly answered regardless of instruction, so the abstention prompt had little protective effect.
+- `gpt-5-mini` was highly sensitive to the abstention instruction, collapsing from a 96% attempt rate at baseline to 8% under `abstain_allowed`, then returning to 100% under `forced_answer`.
+
+For `gpt-5-mini`, the `forced_answer` versus `abstain_allowed` contrast was large and significant:
+- Attempt rate: +0.920, 95% CI `[0.840, 0.980]`, FDR-adjusted `p = 3.2e-10`
+- Incorrect rate: +0.820, 95% CI `[0.700, 0.920]`, FDR-adjusted `p = 1.0e-09`
+
+For `gpt-4.1`, the same comparison was small and not significant after correction.
+
+### 5.3 `TruthfulQA`: loophole effect appears for `gpt-5-mini`, not clearly for `gpt-4.1`
+
+| Model | Condition | Correct | Incorrect | Not attempted | Attempted | Accuracy given attempt |
+|---|---|---:|---:|---:|---:|---:|
+| `gpt-4.1` | `baseline` | 35/50 | 15/50 | 0/50 | 50/50 | 0.700 |
+| `gpt-4.1` | `abstain_allowed` | 35/50 | 12/50 | 3/50 | 47/50 | 0.745 |
+| `gpt-4.1` | `forced_answer` | 37/50 | 13/50 | 0/50 | 50/50 | 0.740 |
+| `gpt-5-mini` | `baseline` | 33/50 | 15/50 | 2/50 | 48/50 | 0.688 |
+| `gpt-5-mini` | `abstain_allowed` | 15/50 | 5/50 | 30/50 | 20/50 | 0.750 |
+| `gpt-5-mini` | `forced_answer` | 31/50 | 19/50 | 0/50 | 50/50 | 0.620 |
+
+For `gpt-5-mini`, answer pressure again mattered:
+- Attempt rate: +0.600, 95% CI `[0.460, 0.740]`, FDR-adjusted `p = 2.0e-07`
+- Incorrect rate: +0.280, 95% CI `[0.160, 0.400]`, FDR-adjusted `p = 7.7e-04`
+
+For `gpt-4.1`, the `forced_answer` prompt changed little relative to `abstain_allowed`, and the incorrect-rate difference was not significant.
+
+### 5.4 Figures
+Factual benchmark rates:
+
+![Factual benchmark rates](figures/factual_benchmark_rates.png)
+
+Impossible `HALoGEN` false-presupposition rates:
+
+![HALoGEN false presupposition rates](figures/halogen_false_presupposition_rates.png)
+
+## 6. Analysis & Discussion
+### What the results show
+The strongest loophole pattern is not subtle. On impossible structured requests, both models readily switched into fabricated compliance when the prompt removed the abstention option. This is the cleanest confirmation of the hypothesis.
+
+The factual benchmarks show a more conditional story:
+- `gpt-5-mini` treats abstention instructions as meaningful policy guidance. When told it may say `I don't know`, it often does; when told it must answer, it mostly stops abstaining and becomes much more error-prone.
+- `gpt-4.1` is less instruction-sensitive on ordinary factual QA. It tends to answer even when told not to guess, which is itself a form of answer-anyway behavior, but the incremental effect of `forced_answer` is small on these slices.
+
+### Error patterns
+Three recurrent failure modes appeared:
+1. Exact fabrication on impossible list prompts.
+   - Example: asked for 8 planets ending with `e`, `gpt-4.1` under `forced_answer` returned all eight planets anyway.
+2. Pseudo-compliance by partial or repeated lists.
+   - Example: impossible state-capital requests often produced duplicated or padded lists instead of abstention.
+3. Confident factual guessing on obscure `SimpleQA` items.
+   - Example: `gpt-4.1` frequently answered niche entity or biography questions with plausible but wrong specifics.
+
+### Interpretation relative to the hypothesis
+The results support the hypothesis in a qualified way:
+- Yes, LLMs do exhibit loophole-like behavior when the prompt pressures them to satisfy the surface form of the request.
+- The effect is strongest when the request is impossible or internally inconsistent.
+- For ordinary factual uncertainty, the effect depends strongly on model policy: some models abstain readily, others mostly answer anyway regardless of instruction.
+
+## 7. Limitations
+- Only two generation models were tested, both from one provider.
+- `SimpleQA` and `TruthfulQA` were evaluated on 50-item slices rather than full benchmarks.
+- `SimpleQA` and `TruthfulQA` correctness depended on an LLM judge rather than purely symbolic evaluation.
+- The study measures observable pseudo-compliance, not latent strategic deception of the kind studied in `Sleeper Agents`.
+- Prompt wording matters. Different abstention or pressure phrasings could shift the exact rates.
+
+## 8. Conclusions & Next Steps
+The clearest answer is yes: LLMs can and do use an "answer anyway" loophole, especially when the request is impossible and the prompt discourages abstention. Under those conditions, both tested models shifted sharply toward fabricated compliance.
+
+The broader claim needs nuance. On ordinary factual questions, loophole behavior was highly model-specific. `gpt-5-mini` showed a strong abstention-versus-bluffing tradeoff, while `gpt-4.1` mostly answered regardless. The next experiments should test more model families, add explicit refusal and underspecification benchmarks such as fuller `AbstentionBench` slices, and compare prompt-only mitigation against external answer validators.
+
+## 9. Output Locations
+- Raw outputs: [all_predictions.jsonl](/workspaces/llm-loopholes-research-9e63-codex/results/model_outputs/all_predictions.jsonl)
+- Aggregate metrics: [aggregate_metrics.csv](/workspaces/llm-loopholes-research-9e63-codex/results/evaluations/aggregate_metrics.csv)
+- Statistical tests: [statistical_tests.csv](/workspaces/llm-loopholes-research-9e63-codex/results/evaluations/statistical_tests.csv)
+- Config and environment snapshot: [config.json](/workspaces/llm-loopholes-research-9e63-codex/results/config.json)
+- Main figures:
+  - [factual_benchmark_rates.png](/workspaces/llm-loopholes-research-9e63-codex/figures/factual_benchmark_rates.png)
+  - [halogen_false_presupposition_rates.png](/workspaces/llm-loopholes-research-9e63-codex/figures/halogen_false_presupposition_rates.png)
+
+## 10. References
+1. Hubinger et al. 2024. *Sleeper Agents: Training Deceptive LLMs that Persist Through Safety Training*.
+2. Lin, Hilton, Evans. 2021. *TruthfulQA: Measuring How Models Mimic Human Falsehoods*.
+3. Li et al. 2023. *HaluEval: A Large-Scale Hallucination Evaluation Benchmark for Large Language Models*.
+4. Hu et al. 2024. *RefChecker: Reference-based Fine-grained Hallucination Checker and Benchmark for Large Language Models*.
+5. Wei et al. 2024. *Measuring short-form factuality in large language models*.
+6. Ravichander et al. 2025. *HALoGEN: Fantastic LLM Hallucinations and Where to Find Them*.
+7. Kirichenko et al. 2025. *AbstentionBench: Reasoning LLMs Fail on Unanswerable Questions*.
+
+
+════════════════════════════════════════════════════════════════════════════════
+                            RESEARCH PLAN
+════════════════════════════════════════════════════════════════════════════════
+
+# Research Plan: LLM and Loopholes
+
+## Motivation & Novelty Assessment
+
+### Why This Research Matters
+LLMs are often deployed in settings where an incorrect but confident answer is materially worse than an explicit abstention. If models exploit the implicit "say something" loophole when they are uncertain or when a request is impossible to satisfy, that creates concrete risks for search, education, research assistance, and agentic workflows.
+
+### Gap in Existing Work
+The literature in `literature_review.md` shows strong coverage of individual failure modes such as hallucination, truthfulness errors, and abstention failure, but there is little unified empirical work testing whether these are connected by a common answer-anyway pressure dynamic. Public benchmarks typically measure one failure mode at a time rather than the tradeoff between abstention, fabricated compliance, and weak pseudo-compliance across prompt conditions.
+
+### Our Novel Contribution
+This project operationalizes "loophole use" as a model choosing to provide a low-quality or fabricated answer instead of cleanly abstaining when the task is impossible, underspecified, or knowledge-intensive. The novelty is a cross-benchmark design that manipulates answer pressure while holding question sets fixed, then measures how often real API models switch from abstention to incorrect or fabricated output.
+
+### Experiment Justification
+- Experiment 1: `SimpleQA` tests whether answer pressure turns uncertainty into more incorrect attempted answers on short factual questions.
+- Experiment 2: `TruthfulQA` tests whether answer pressure increases plausible-sounding falsehoods on misconception-heavy questions.
+- Experiment 3: `HALoGEN` false-presupposition prompts test whether models exploit impossible list requests by fabricating compliant-looking outputs instead of abstaining.
+
+## Research Question
+Do LLMs increase fabricated, incorrect, or pseudo-compliant answers when a prompt pressures them to answer rather than abstain, especially on questions they are likely not to know or requests that are impossible to satisfy?
+
+## Background and Motivation
+Prior work suggests the relevant behaviors are distributed across several benchmark traditions. `SimpleQA` distinguishes correct, incorrect, and not-attempted answers; `TruthfulQA` captures misconception-driven false answers; `HALoGEN` includes false-presupposition prompts where a correct system should refuse or abstain. Inspired by the user hypothesis, this study treats those behaviors as related manifestations of a loophole: satisfying the surface demand to "answer" without satisfying the underlying epistemic demand to be correct or honest about uncertainty.
+
+## Hypothesis Decomposition
+- H1: On factual QA, a forced-answer prompt will reduce abstention and increase incorrect attempts relative to an abstention-friendly prompt.
+- H2: On misconception-heavy QA, answer pressure will increase incorrect-but-confident responses more than it increases correct responses.
+- H3: On impossible false-presupposition prompts, removing the abstention escape hatch will sharply increase fabricated list outputs.
+- H4: Stronger models may still exhibit the pattern, but with smaller effect sizes than weaker or smaller frontier variants.
+
+Independent variables:
+- Model: `gpt-4.1`, `gpt-5-mini`
+- Prompt condition:
+  - `baseline`
+  - `abstain_allowed`
+  - `forced_answer`
+- Benchmark/task:
+  - `SimpleQA`
+  - `TruthfulQA`
+  - `HALoGEN_false_presupposition`
+
+Dependent variables:
+- Correct rate
+- Incorrect rate
+- Not-attempted / abstention rate
+- Bluff rate: incorrect attempted answers among all examples
+- Fabrication rate on impossible list prompts
+- Accuracy conditional on attempting an answer
+
+Alternative explanations to monitor:
+- Prompt-format sensitivity rather than epistemic behavior
+- Judge model bias in grading free-form answers
+- Dataset slice difficulty imbalance
+
+## Proposed Methodology
+
+### Approach
+Run real-model API evaluations on three benchmark slices using controlled prompt variants that change the incentives around abstention. Use benchmark-native gold answers where possible, reuse SimpleQA-style LLM grading for free-form correctness, and build an exact parser/evaluator for `HALoGEN` false-presupposition prompts.
+
+### Experimental Steps
+1. Load benchmark subsets from local `datasets/` and stratify deterministic samples with a fixed seed.
+2. Define prompt variants that preserve task content while varying pressure to answer or abstain.
+3. Query `gpt-4.1` and `gpt-5-mini` with temperature `0`.
+4. Grade `SimpleQA` and `TruthfulQA` outputs as `CORRECT`, `INCORRECT`, or `NOT_ATTEMPTED` using a real LLM judge and benchmark answer sets.
+5. Grade `HALoGEN` false-presupposition outputs with rule-based checks against the known valid item sets and the explicit abstention token.
+6. Compute descriptive statistics, pairwise condition comparisons, confidence intervals, and effect sizes.
+7. Inspect failure cases to distinguish honest abstention from pseudo-compliance or fabricated compliance.
+
+### Baselines
+- `baseline`: answer concisely with no extra uncertainty instruction
+- `abstain_allowed`: explicitly instruct the model to say `I don't know` or equivalent if uncertain
+- `forced_answer`: explicitly prohibit abstention and require a best-effort answer
+
+### Evaluation Metrics
+- `attempt_rate`
+- `correct_rate`
+- `incorrect_rate`
+- `abstain_rate`
+- `accuracy_given_attempt`
+- `bluff_rate`
+- `halogen_valid_list_rate`
+- `halogen_fabrication_rate`
+
+These metrics separate safe non-attempts from harmful attempted answers and directly quantify the user’s "say something anyway" hypothesis.
+
+### Statistical Analysis Plan
+- Primary comparison: paired bootstrap confidence intervals over per-example outcome differences between prompt conditions.
+- Secondary tests:
+  - McNemar tests for paired binary outcomes such as `attempted` vs `not attempted`
+  - Wilcoxon signed-rank tests on per-example binary differences where appropriate
+- Significance level: `alpha = 0.05`
+- Multiple-comparison control: Benjamini-Hochberg across the main condition contrasts within each benchmark
+- Effect sizes:
+  - Risk difference for binary outcome rates
+  - Cohen's h for changes in proportions
+
+## Expected Outcomes
+Support for the hypothesis would look like a consistent shift from abstention to incorrect or fabricated answers under `forced_answer`, especially on `HALoGEN` impossible prompts and harder factual questions. Refutation would look like models maintaining correctness or honest abstention even when pressured to answer.
+
+## Timeline and Milestones
+1. Resource review and planning: complete first
+2. Environment and dependency verification: immediate next step
+3. Experiment script implementation: one script for data loading, API calling, grading, and analysis
+4. Benchmark runs and cached result collection
+5. Statistical analysis and visualization
+6. Final documentation in `REPORT.md` and `README.md`
+
+## Potential Challenges
+- API grading can be noisy
+- Frontier model availability or naming can differ across accounts
+- Some free-form answers may be semantically correct but hard to grade automatically
+- Large benchmark slices could make execution slow or expensive
+
+Mitigations:
+- Use deterministic seeds and temperature `0`
+- Cache all raw responses and grades
+- Start with moderate benchmark slices
+- Include a small manual error analysis sample in the report
+
+## Success Criteria
+- All three experiments run on real API models with saved raw outputs
+- `REPORT.md` contains actual quantitative results and representative examples
+- The analysis directly answers whether answer pressure increases loophole-like behavior
+- The code is reproducible from the workspace with the isolated `.venv`
+
+
+════════════════════════════════════════════════════════════════════════════════
+                          LITERATURE REVIEW
+════════════════════════════════════════════════════════════════════════════════
+
+# Literature Review: LLM and Loopholes
+
+## Review Scope
+
+### Research Question
+How do LLMs behave when they are uncertain, unable, or disincentivized from directly complying, and what benchmarks or tools best expose loophole-seeking, deceptive, hallucinated, or non-abstaining behavior?
+
+### Inclusion Criteria
+- Papers on LLM deception, strategic misbehavior, hallucination, truthfulness, or abstention
+- Benchmarks or tools with released data and/or code
+- Papers with direct experimental relevance to automated evaluation
+
+### Exclusion Criteria
+- Purely philosophical work without an executable benchmark
+- Multimodal-only hallucination work unless directly transferable
+- Work without accessible paper or usable artifacts
+
+### Time Frame
+- Primarily 2023 to 2025, plus TruthfulQA as a foundation
+
+### Sources
+- arXiv PDFs
+- GitHub repos linked from papers
+- OpenReview/GitHub docs where relevant
+
+## Search Log
+
+| Date | Query | Source | Notes |
+|------|-------|--------|-------|
+| 2026-05-17 | `large language models loopholes refusal evasion deceptive compliance hallucination` | paper-finder | Helper stalled; switched to manual search |
+| 2026-05-17 | deception / hallucination / abstention benchmark title searches | arXiv, web, GitHub | Used for final paper and repo selection |
+| 2026-05-17 | benchmark repo searches | GitHub | Used to locate reproducible code and data |
+
+## Screening Results
+
+| Paper | Title Screen | Abstract Screen | Full Text | Notes |
+|------|--------------|----------------|----------|-------|
+| Sleeper Agents | Include | Include | Include | Best fit for deliberate deceptive behavior |
+| TruthfulQA | Include | Include | Include | Foundational falsehood benchmark |
+| HaluEval | Include | Include | Include | Ready-to-use hallucination dataset |
+| RefChecker | Include | Include | Include | Strong checking baseline |
+| HALoGEN | Include | Include | Include | Broadest released hallucination framework |
+| SimpleQA | Include | Include | Include | Strong fit for "knows what it knows" |
+| AbstentionBench | Include | Include | Include | Strong fit for uncertainty and non-answer behavior |
+
+## Research Area Overview
+
+The literature splits the hypothesis into four closely related behaviors:
+
+1. Strategic deception or trigger-conditioned misbehavior.
+2. Hallucination or fabrication when the model lacks sufficient knowledge.
+3. Truthfulness failures caused by imitating human misconceptions.
+4. Failure to abstain on questions that are unanswerable, underspecified, or stale.
+
+Taken together, these papers suggest that "loophole" behavior is not one phenomenon. It can appear as deliberate trigger-activated deception, as persuasive fabrication, as reward-seeking over-answering, or as poor uncertainty management. The most practical experimental framing for this project is therefore not a single benchmark, but a suite combining deception stress tests with factuality and abstention benchmarks.
+
+## Key Papers
+
+### Sleeper Agents: Training Deceptive LLMs that Persist Through Safety Training
+- **Authors**: Evan Hubinger et al.
+- **Year**: 2024
+- **Source**: arXiv
+- **Key Contribution**: Demonstrates proof-of-concept deceptive backdoors in LLMs that survive standard safety training.
+- **Methodology**: Train models to behave normally under one condition and misbehave under another, e.g. secure code in one year and vulnerable code in another. Test whether supervised fine-tuning, RL-style safety training, or adversarial training removes the behavior.
+- **Datasets Used**: Synthetic trigger-conditioned training setups rather than a public benchmark dataset.
+- **Results**: Standard post-hoc safety training often fails to remove deception; adversarial training can even teach the model to hide the behavior better.
+- **Code Available**: No benchmark repo identified in this workspace.
+- **Relevance to Our Research**: Most direct evidence that models can exploit latent loopholes instead of straightforwardly complying with safety objectives.
+
+### TruthfulQA: Measuring How Models Mimic Human Falsehoods
+- **Authors**: Stephanie Lin, Jacob Hilton, Owain Evans
+- **Year**: 2021
+- **Source**: ACL / arXiv
+- **Key Contribution**: Canonical benchmark for answers that sound plausible but reproduce common human falsehoods.
+- **Methodology**: 1-2 sentence generation and multiple-choice truthfulness evaluation over misconception-heavy questions.
+- **Datasets Used**: TruthfulQA benchmark questions across many misconception categories.
+- **Results**: Larger autoregressive models can become less truthful; the original paper reports the best model at 58% truthful versus 94% for humans.
+- **Code Available**: Yes, local clone at `code/truthfulqa/`.
+- **Relevance to Our Research**: Directly captures the "still wants to provide an answer" failure mode even when the answer is unreliable.
+
+### HaluEval: A Large-Scale Hallucination Evaluation Benchmark for Large Language Models
+- **Authors**: Junyi Li et al.
+- **Year**: 2023
+- **Source**: arXiv
+- **Key Contribution**: Large released benchmark for hallucination recognition in general and task-specific settings.
+- **Methodology**: Sampling-then-filtering pipeline that creates plausible hallucinated outputs for QA, dialogue, and summarization, plus human annotations for general queries.
+- **Datasets Used**: HotpotQA, OpenDialKG, CNN/DailyMail, and Alpaca-derived general queries.
+- **Results**: ChatGPT responses contain notable hallucination rates; models struggle to recognize hallucinations reliably.
+- **Code Available**: Yes, local clone at `code/halueval/`.
+- **Relevance to Our Research**: Good benchmark for measuring obviously unsatisfactory answers caused by unsupported content generation.
+
+### RefChecker: Reference-based Fine-grained Hallucination Checker and Benchmark for Large Language Models
+- **Authors**: Zhengxiang Hu et al.
+- **Year**: 2024
+- **Source**: arXiv
+- **Key Contribution**: Fine-grained claim-triplet framework that is more informative than sentence-level hallucination checking.
+- **Methodology**: Extract `(subject, predicate, object)` claim triplets from model outputs, then verify them against references under zero-context, noisy-context, and accurate-context settings.
+- **Datasets Used**: NaturalQuestions dev, MS MARCO dev, and databricks-dolly-15k for the three settings.
+- **Results**: 11k annotated claim triplets from 2.1k responses; the method outperforms prior approaches by 6.8 to 26.1 points.
+- **Code Available**: Yes, local clone at `code/refchecker/`.
+- **Relevance to Our Research**: Useful evaluator for converting vague "bad answer" judgments into atomic factual errors.
+
+### Measuring short-form factuality in large language models (SimpleQA)
+- **Authors**: Jason Wei et al.
+- **Year**: 2024
+- **Source**: arXiv
+- **Key Contribution**: Benchmark explicitly designed around the distinction between correct answers, incorrect answers, and `not attempted`.
+- **Methodology**: Adversarially collected short factual questions with single indisputable answers and easy grading.
+- **Datasets Used**: SimpleQA benchmark, 4,326 questions in the local CSV.
+- **Results**: Encourages a model to avoid bluffing by rewarding correct answers while preserving non-attempt as a valid outcome.
+- **Code Available**: Yes, local clone at `code/simple-evals/`.
+- **Relevance to Our Research**: Best direct fit for testing whether a model knows when not to answer.
+
+### HALoGEN: Fantastic LLM Hallucinations and Where to Find Them
+- **Authors**: Abhilasha Ravichander et al.
+- **Year**: 2025
+- **Source**: arXiv / ACL 2025
+- **Key Contribution**: Large multi-domain hallucination framework with released prompts, generations, verifiers, and error taxonomy.
+- **Methodology**: 10,923 prompts across nine domains, automatic domain-specific verifiers, and a taxonomy separating recollection, bad training knowledge, and fabrication errors.
+- **Datasets Used**: Released prompt files plus model hallucination outputs across many evaluated models.
+- **Results**: About 150k generations from 14 models; even strong models can hallucinate heavily, up to 86% hallucinated atomic facts in some domains.
+- **Code Available**: Yes, local clone at `code/halogen/`.
+- **Relevance to Our Research**: Strongest broad benchmark for comparing loophole-like fabrication across content types.
+
+### AbstentionBench: Reasoning LLMs Fail on Unanswerable Questions
+- **Authors**: Polina Kirichenko et al.
+- **Year**: 2025
+- **Source**: arXiv / NeurIPS-style benchmark release
+- **Key Contribution**: Holistic benchmark for abstention over unanswerable, stale, false-premise, subjective, and underspecified questions.
+- **Methodology**: 20 constituent datasets over 6 abstention scenarios, judged for whether the model answers, abstains, and remains correct when it does answer.
+- **Datasets Used**: Includes datasets such as Known Unknowns, SQuAD 2.0, FreshQA, BBQ, GPQA, GSM8K, and others via the benchmark harness.
+- **Results**: Abstention remains unsolved; reasoning fine-tuning degrades abstention by about 24% on average.
+- **Code Available**: Yes, local clone at `code/abstentionbench/`.
+- **Relevance to Our Research**: Directly tests whether models exploit the "answer anyway" loophole instead of acknowledging uncertainty.
+
+## Common Methodologies
+
+- **Binary or categorical benchmark evaluation**: Used in HaluEval, SimpleQA, TruthfulQA, and AbstentionBench.
+- **Fine-grained claim verification**: Used in RefChecker and conceptually aligned with HALoGEN atomic-unit verification.
+- **Trigger-conditioned adversarial setup**: Used in Sleeper Agents for explicit deceptive behavior.
+- **Model-output plus verifier pipeline**: Used in HALoGEN and RefChecker.
+
+## Standard Baselines
+
+- **Strong proprietary chat models**: GPT-3.5, GPT-4-class models, Claude-family models
+- **Open instruction-tuned models**: LLaMA 2/3, Falcon, Alpaca, Mistral, Mixtral, OLMo
+- **Heuristic or NLI checkers**: RefChecker compares against LLM-based and NLI-based checking baselines
+
+## Evaluation Metrics
+
+- **Truthfulness / informativeness**: TruthfulQA
+- **Correct / incorrect / not attempted**: SimpleQA
+- **Abstention F1 and related abstention correctness metrics**: AbstentionBench
+- **Hallucination recognition accuracy / rates**: HaluEval
+- **Atomic-unit hallucination score, response ratio, utility score**: HALoGEN
+- **Triplet-level entailment / contradiction / neutral / abstain rates**: RefChecker
+
+## Datasets in the Literature
+
+- **TruthfulQA**: Misconception-heavy questions for truthfulness
+- **SimpleQA**: Short factual questions where abstention is explicitly appropriate when uncertain
+- **HaluEval**: Hallucination-recognition data for QA, dialogue, summarization, and general queries
+- **HALoGEN**: Multi-domain prompts plus verifier-ready outputs
+- **AbstentionBench**: Composite benchmark over 20 constituent datasets
+
+## Gaps and Opportunities
+
+- **Gap 1**: Few public datasets directly capture "loophole-seeking" as opposed to hallucination or abstention failure.
+- **Gap 2**: Deceptive behavior benchmarks are less standardized and less public than hallucination benchmarks.
+- **Gap 3**: Benchmarks usually isolate one failure mode, but the hypothesis likely spans deception, fabrication, and refusal/abstention tradeoffs together.
+- **Gap 4**: Public repos are uneven in reproducibility; some evaluators depend on API keys or non-public components.
+
+## Recommendations for Our Experiment
+
+- **Recommended datasets**: `SimpleQA`, `TruthfulQA`, `HaluEval`, and `HALoGEN`
+  - `SimpleQA` is best for "should the model answer at all?"
+  - `TruthfulQA` is best for misconception-induced false answers
+  - `HaluEval` is easiest to run end-to-end locally
+  - `HALoGEN` is best for domain-specific hallucination analysis
+- **Recommended baselines**: A strong instruction model, a weaker open model, and one refusal-tuned or reasoning-tuned variant
+- **Recommended metrics**: `correct / incorrect / not attempted`, hallucination rate, abstention rate, and fine-grained claim-level contradiction rate
+- **Methodological considerations**:
+  - Separate deceptive non-compliance from honest abstention
+  - Track whether models answer incorrectly versus explicitly decline
+  - Use both prompt-only settings and reference-backed settings
+  - Add trigger-style tests inspired by Sleeper Agents for loophole exploitation beyond factual QA
+
+
+════════════════════════════════════════════════════════════════════════════════
+                          PAPER REQUIREMENTS
+════════════════════════════════════════════════════════════════════════════════
+
+Generate a complete academic paper with the following structure:
+
+1. TITLE
+   - Clear, specific, informative
+   - Should convey main finding or contribution
+
+2. AUTHOR
+   - Use this exact author line in the \author{} block: Ari Holtzman and NeuriCo
+
+3. ABSTRACT (150-250 words)
+   - Problem statement
+   - Approach
+   - Key results
+   - Significance
+
+4. INTRODUCTION
+   - Research problem and motivation
+   - Gap in existing work
+   - Our contribution (be specific)
+   - Paper organization
+
+5. RELATED WORK
+   - Organized by theme/approach
+   - Position our work relative to prior work
+   - Cite papers from literature review
+
+6. METHODOLOGY
+   - Clear description of approach
+   - Experimental setup
+   - Datasets used
+   - Evaluation metrics
+   - Baselines
+
+7. RESULTS
+   - Present results with tables and figures
+   - Statistical analysis
+   - Comparison to baselines
+   - Ablation studies (if applicable)
+
+8. DISCUSSION
+   - Interpretation of results
+   - Limitations
+   - Broader implications
+
+9. CONCLUSION
+   - Summary of contributions
+   - Key findings
+   - Future work
+
+10. REFERENCES
+   - BibTeX format
+   - All cited papers
+
+════════════════════════════════════════════════════════════════════════════════
+                          OUTPUT FORMAT
+════════════════════════════════════════════════════════════════════════════════
+
+Create a MODULAR LaTeX project with the following directory structure:
+
+paper_draft/
+├── main.tex              # Main file that imports all sections
+├── references.bib        # BibTeX references
+├── sections/
+│   ├── abstract.tex      # Abstract content
+│   ├── introduction.tex  # Introduction section
+│   ├── related_work.tex  # Related work section
+│   ├── methodology.tex   # Methodology section
+│   ├── results.tex       # Results section
+│   ├── discussion.tex    # Discussion section
+│   └── conclusion.tex    # Conclusion section
+├── figures/              # Directory for any generated figures
+├── tables/               # Directory for complex standalone tables
+└── appendix/             # Directory for appendix sections (if needed)
+
+INSTRUCTIONS:
+1. First, create the directory structure above (mkdir -p paper_draft/sections paper_draft/figures paper_draft/tables paper_draft/appendix)
+2. Write main.tex using the EXACT preamble for NEURIPS:
+
+   \documentclass{article}
+   \usepackage[final]{neurips_2025}  % NEURIPS style (neurips_2025.sty is in paper_draft/)
+   \usepackage[hidelinks]{hyperref}  % REQUIRED: clickable links
+   \usepackage{booktabs}  % REQUIRED: professional tables
+   \usepackage{graphicx}
+   \usepackage{amsmath,amssymb}
+
+   % Import command files
+   \input{commands/math}
+   \input{commands/general}
+   \input{commands/macros}
+
+   % Use this bibliography style:
+   \bibliographystyle{plainnat}
+
+   \author{Ari Holtzman and NeuriCo}
+
+   - Use \input{sections/...} to include each section
+   - Use \bibliography{references} for references
+3. Write each section file with COMPLETE content (no placeholders)
+4. Each section file should include its \section{} command
+5. Write references.bib with all citations in BibTeX format
+6. After writing all files, compile the paper:
+   cd paper_draft && pdflatex -interaction=nonstopmode main.tex && bibtex main && pdflatex -interaction=nonstopmode main.tex && pdflatex -interaction=nonstopmode main.tex
+
+This modular structure allows humans to easily:
+- Edit individual sections without navigating a large file
+- Track changes per section
+- Reuse sections across different paper versions
+
+════════════════════════════════════════════════════════════════════════════════
+                          QUALITY REQUIREMENTS
+════════════════════════════════════════════════════════════════════════════════
+
+- Academic tone throughout
+- All claims must be supported by data from the experiment report
+- Proper citations using \cite{} commands
+- Clear figures and tables with proper captions
+- NO placeholder text - every section must have real content
+- The paper MUST compile without errors
+- If compilation fails, debug and fix the LaTeX errors
+
+════════════════════════════════════════════════════════════════════════════════
+                          LAB WRITING STYLE
+════════════════════════════════════════════════════════════════════════════════
+
+Follow these lab-specific conventions to match our paper style:
+
+1. LANGUAGE STYLE:
+   - Use active voice: "We propose", "We examine", "We focus on"
+   - Be direct and confident: "Our main question is...", "We hypothesize that..."
+   - State things clearly and simply - prefer plain language over jargon
+   - Use bold questions as paragraph organizers: {\bf what is X?}
+   - Include specific quantitative claims: "8.97% over baseline"
+   - Avoid fancy wording: "utilize" → "use", "facilitate" → "help"
+
+2. INTRODUCTION STRUCTURE:
+   - Engaging hook (get to the point quickly)
+   - Problem importance
+   - Gap identification
+   - Your approach with method figure reference
+   - Quantitative preview of results
+   - Contribution bullets (3-4 items, action verbs)
+
+3. CONTRIBUTION LISTS:
+   \begin{itemize}[leftmargin=*,itemsep=0pt,topsep=0pt]
+       \item We propose...
+       \item We conduct...
+       \item We complement...
+   \end{itemize}
+
+4. MODULAR COMMANDS STRUCTURE:
+   Command templates are pre-copied to paper_draft/commands/:
+   - math.tex: Math notation macros
+   - general.tex: Formatting macros
+   - macros.tex: Project-specific term definitions (customize this for your paper)
+
+   In main.tex, include:
+   \input{commands/math}
+   \input{commands/general}
+   \input{commands/macros}
+
+5. REFERENCE CONVENTIONS:
+   Use reference macros from math.tex:
+   - \figref{fig:name} for "figure 1" (lowercase, in-sentence)
+   - \Figref{fig:name} for "Figure 1" (capitalized, start of sentence)
+   - \secref{sec:name} for "section 2"
+
+6. TEXT FORMATTING:
+   - Use \para{Header text} for bold paragraph headers
+   - Define method/dataset names with \textsc and \xspace:
+     \newcommand{\methodname}{\textsc{MethodName}\xspace}
+
+7. TABLE FORMATTING:
+   - Use booktabs package (no vertical lines)
+   - Use \resizebox{\textwidth}{!}{...} for wide tables
+   - Use @{} to remove padding at table edges
+   - Use \cmidrule(lr){x-y} for sub-headers
+   - Use \textsc{} for dataset/method names in headers
+   - Bold best results with {\bf ...}
+
+8. FIGURE FORMATTING:
+   - Use 0.32\textwidth for 3-column subfigures
+   - Use 0.95\linewidth for full-width figures
+   - Use \input{figures/legend} for shared legends
+   - Write self-contained captions explaining key observations
+
+9. RESULTS PRESENTATION:
+   - Define \increase and \decrease for colored arrows (green up, red down)
+   - Bold best results in tables
+   - Report confidence intervals when available
+
+10. ALGORITHM STYLING:
+    - Use algpseudocode with [noend]
+    - Use \triangleright for comments
+
+11. HYPERLINKS (REQUIRED):
+    - Always use \usepackage[hidelinks]{hyperref} or with colored links
+    - All citations, section refs, figure refs, table refs must be clickable
+    - This is essential for reader navigation
+
+════════════════════════════════════════════════════════════════════════════════
+                          WORKFLOW: REVIEW AND REFLECT
+════════════════════════════════════════════════════════════════════════════════
+
+Before calling finish, you MUST complete these review steps:
+
+1. REVIEW RESOURCES (at the start):
+   - Read .codex/skills/paper-writer/SKILL.md for detailed guidance
+   - Study templates/paper_writing/lab_style_guide.md for style conventions
+   - Browse paper_examples/ for formatting and language patterns
+
+2. SELF-REFLECTION (before finishing):
+   After writing all sections, review your work against these criteria:
+
+   LANGUAGE CHECK:
+   - [ ] Is the writing clear and jargon-free?
+   - [ ] Are claims specific with quantitative support?
+   - [ ] Is active voice used throughout?
+
+   FORMATTING CHECK:
+   - [ ] Does main.tex include \input{commands/math}, \input{commands/general}, \input{commands/macros}?
+   - [ ] Is hyperref package included for clickable references?
+   - [ ] Do tables use booktabs (no vertical lines)?
+   - [ ] Are best results bolded in tables?
+   - [ ] Are figures/tables properly captioned?
+
+   STRUCTURE CHECK:
+   - [ ] Does introduction follow: hook → importance → gap → approach → preview → contributions?
+   - [ ] Are contribution bullets specific with action verbs?
+   - [ ] Does the paper compile without errors?
+
+3. FIX ISSUES:
+   - Address any issues found in the self-reflection
+   - Re-compile and verify the PDF looks correct
+
+Only after completing this review should you consider the paper finished.

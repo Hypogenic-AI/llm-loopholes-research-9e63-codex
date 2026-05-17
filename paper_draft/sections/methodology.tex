@@ -1,0 +1,16 @@
+\section{Methodology}
+\label{sec:methodology}
+
+\para{Task framing.} We operationalize \loopholeuse as attempted compliance when abstention would be epistemically correct. This definition covers two cases. On factual benchmarks, abstention is appropriate when the model is not confident it knows the answer. On impossible false-presupposition prompts, abstention is the only correct behavior because the request cannot be satisfied exactly.
+
+\para{Models and prompt conditions.} We evaluate two API models: \gptfourone and \gptfivemini. Each model is run under three prompt conditions: \baseline, which asks for a brief direct answer; \abstainallowed, which permits the model to say ``I don't know'' if unsure; and \forcedanswer, which explicitly forbids abstention and asks for the best possible answer even under uncertainty. All generations use seed 42. The main experiment contains 960 model calls in total, and factual grading adds 600 calls to \textsc{gpt-4.1-mini}.
+
+\para{Benchmarks.} We use three benchmark families chosen to cover different forms of epistemic pressure. \simpleqa contains 50 short factual questions. \truthfulqa contains 50 misconception-heavy questions. \halogen contributes 80 false-presupposition prompts, including 60 impossible prompts and 20 possible prompts. Our primary loophole analysis focuses on the 60 impossible \halogen prompts because they provide the cleanest ground truth: an attempted answer is a loophole attempt, while abstention is correct.
+
+\para{Evaluation.} \simpleqa and \truthfulqa outputs are graded by \textsc{gpt-4.1-mini} into \textsc{Correct}, \textsc{Incorrect}, or \textsc{Not Attempted}. For \halogen false-presupposition prompts, we use a rule-based evaluator. On impossible prompts, abstention counts as correct. Any attempted answer counts as a loophole attempt, and outputs containing invalid list items count as fabricated attempts. This rule-based setup avoids ambiguity on the main impossible-request result.
+
+\para{Metrics.} We report attempted, incorrect, and not-attempted rates on all benchmarks. For factual benchmarks, we also report accuracy given attempt. For impossible \halogen prompts, we additionally report loophole-attempt and fabricated-attempt rates. These metrics distinguish harmless abstention from harmful attempted compliance.
+
+\para{Statistical analysis.} Our primary comparisons are paired contrasts between \forcedanswer and \abstainallowed on the same examples. We estimate risk differences with bootstrap 95\% confidence intervals and apply McNemar tests to paired binary outcomes. We control for multiple comparisons with Benjamini--Hochberg correction across the main contrasts. This analysis emphasizes within-example behavioral shifts rather than raw aggregate differences alone.
+
+\para{Reproducibility and implementation.} The study is API-based and does not use local GPUs. The code runs under Python 3.12.8. Cached reruns reproduce identical hashes for the aggregate metrics, statistical test outputs, and raw predictions. The main experiment script is \texttt{src/research\_workspace/run\_experiments.py}.

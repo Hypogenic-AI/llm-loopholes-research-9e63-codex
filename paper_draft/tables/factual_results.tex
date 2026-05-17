@@ -1,0 +1,28 @@
+\begin{table}[t]
+    \centering
+    \caption{Factual benchmark results. Higher is better for correct answers and accuracy given attempt; lower is better for incorrect and not-attempted rates. Best values within each model and benchmark are in \textbf{bold}.}
+    \label{tab:factual-results}
+    \resizebox{\textwidth}{!}{%
+    \begin{tabular}{@{}llccccc@{}}
+        \toprule
+        Benchmark & Model / Condition & Correct & Incorrect & Not attempted & Attempted & Accuracy given attempt \\
+        \midrule
+        \simpleqa & \gptfourone / \baseline & 20/50 & 30/50 & \textbf{0/50} & 50/50 & 0.400 \\
+        \simpleqa & \gptfourone / \abstainallowed & 16/50 & 33/50 & 1/50 & 49/50 & 0.327 \\
+        \simpleqa & \gptfourone / \forcedanswer & \textbf{22/50} & \textbf{28/50} & \textbf{0/50} & 50/50 & \textbf{0.440} \\
+        \cmidrule(lr){1-7}
+        \simpleqa & \gptfivemini / \baseline & \textbf{5/50} & 43/50 & 2/50 & 48/50 & \textbf{0.104} \\
+        \simpleqa & \gptfivemini / \abstainallowed & 0/50 & \textbf{4/50} & \textbf{46/50} & \textbf{4/50} & 0.000 \\
+        \simpleqa & \gptfivemini / \forcedanswer & \textbf{5/50} & 45/50 & 0/50 & 50/50 & 0.100 \\
+        \midrule
+        \truthfulqa & \gptfourone / \baseline & 35/50 & 15/50 & \textbf{0/50} & 50/50 & 0.700 \\
+        \truthfulqa & \gptfourone / \abstainallowed & 35/50 & \textbf{12/50} & 3/50 & 47/50 & \textbf{0.745} \\
+        \truthfulqa & \gptfourone / \forcedanswer & \textbf{37/50} & 13/50 & \textbf{0/50} & 50/50 & 0.740 \\
+        \cmidrule(lr){1-7}
+        \truthfulqa & \gptfivemini / \baseline & \textbf{33/50} & 15/50 & 2/50 & 48/50 & 0.688 \\
+        \truthfulqa & \gptfivemini / \abstainallowed & 15/50 & \textbf{5/50} & \textbf{30/50} & \textbf{20/50} & \textbf{0.750} \\
+        \truthfulqa & \gptfivemini / \forcedanswer & 31/50 & 19/50 & 0/50 & 50/50 & 0.620 \\
+        \bottomrule
+    \end{tabular}%
+    }
+\end{table}

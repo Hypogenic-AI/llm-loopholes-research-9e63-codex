@@ -1,0 +1,22 @@
+\section{Introduction}
+\label{sec:introduction}
+
+Large language models are often evaluated on whether they can produce an answer. In deployment, that objective can be wrong. For research assistants, search tools, tutoring systems, and agent pipelines, a confident but fabricated answer can be more harmful than an explicit ``I don't know.'' Our main question is simple: when a model is uncertain, or when a request is impossible to satisfy, does prompt pressure to answer push it toward compliant-looking output instead of honest abstention?
+
+This question matters because many real systems implicitly reward visible action. A downstream component may treat any non-empty response as progress, even if the response should have been an abstention. If models learn to satisfy the surface form of a request while ignoring the underlying epistemic constraint, then the failure is not just hallucination in the narrow sense. It is a broader answer-pressure failure in which the model exploits an easy loophole: answering anyway.
+
+Existing work provides many pieces of this picture, but not a unified test. Research on strategic deception shows that models can preserve undesirable behavior under training pressure \citep{hubinger2024sleeper}. Truthfulness and factuality benchmarks measure plausible falsehoods and calibrated answering \citep{lin2021truthfulqa,wei2024simpleqa}. Hallucination benchmarks study fabricated content and verifier design \citep{li2023halueval,hu2024refchecker,ravichander2025halogen}. AbstentionBench shows that frontier reasoning models still fail badly on unanswerable questions \citep{kirichenko2025abstentionbench}. However, these lines of work usually evaluate one failure mode at a time. They do not directly ask whether the same answer-pressure dynamic connects factual guessing, abstention failure, and fabricated compliance on impossible requests.
+
+We address that gap with a controlled cross-benchmark study. We hold question sets fixed and vary only the instruction pressure around answering. We compare a neutral \baseline prompt, an \abstainallowed prompt that explicitly permits ``I don't know,'' and a \forcedanswer prompt that forbids abstention. We test \gptfourone and \gptfivemini on \simpleqa, \truthfulqa, and false-presupposition prompts from \halogen, where the impossible subset gives a clean setting in which abstention is the correct behavior.
+
+The main result is sharp. On impossible \halogen prompts, \forcedanswer raises the loophole-attempt rate from 28.3\% to 100\% for \gptfourone and from 31.7\% to 100\% for \gptfivemini. Fabricated attempts rise by 75.0 and 61.7 percentage points, respectively. On factual benchmarks, the pattern depends strongly on the model. On \simpleqa, \gptfivemini moves from an 8\% attempt rate under \abstainallowed to 100\% under \forcedanswer, with an 82-point increase in incorrect answers. \gptfourone changes little because it already tends to answer even when abstention is encouraged.
+
+Our contributions are:
+\begin{itemize}
+    \item We define \loopholeuse as attempted compliance when abstention is epistemically correct, which lets us compare impossible requests and factual uncertainty within one framework.
+    \item We conduct a controlled study across three benchmark families and three prompt conditions, totaling 960 model generations and 600 grader calls.
+    \item We show that impossible structured prompts produce the strongest loophole effect, with both tested models switching to universal attempted compliance under \forcedanswer.
+    \item We identify a strong model difference on factual QA: \gptfivemini exhibits a large abstention-versus-bluffing tradeoff, while \gptfourone mostly answers regardless of instruction.
+\end{itemize}
+
+The rest of the paper is organized as follows. \Secref{sec:related_work} situates the study in prior work on deception, truthfulness, hallucination, and abstention. \Secref{sec:methodology} describes the benchmark slices, prompt conditions, grading pipeline, and statistical tests. \Secref{sec:results} reports the main quantitative findings, and \Secref{sec:discussion} discusses interpretation, limitations, and broader implications.

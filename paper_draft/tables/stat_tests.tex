@@ -1,0 +1,21 @@
+\begin{table}[t]
+    \centering
+    \caption{Primary paired contrasts between \forcedanswer and \abstainallowed. Positive risk differences indicate more attempted or fabricated behavior under answer pressure.}
+    \label{tab:stats-main}
+    \resizebox{\textwidth}{!}{%
+    \begin{tabular}{@{}lllccc@{}}
+        \toprule
+        Benchmark / Model & Metric & Risk difference & 95\% CI & FDR-adjusted $p$ & $n$ \\
+        \midrule
+        \halogen / \gptfourone & loophole attempt & +0.717 & [0.600, 0.833] & $6.0\times 10^{-10}$ & 60 \\
+        \halogen / \gptfourone & fabricated attempt & +0.750 & [0.633, 0.850] & $3.2\times 10^{-10}$ & 60 \\
+        \halogen / \gptfivemini & loophole attempt & +0.683 & [0.567, 0.800] & $1.0\times 10^{-9}$ & 60 \\
+        \halogen / \gptfivemini & fabricated attempt & +0.617 & [0.483, 0.750] & $1.6\times 10^{-8}$ & 60 \\
+        \simpleqa / \gptfivemini & attempted & +0.920 & [0.840, 0.980] & $3.2\times 10^{-10}$ & 50 \\
+        \simpleqa / \gptfivemini & incorrect & +0.820 & [0.700, 0.920] & $1.0\times 10^{-9}$ & 50 \\
+        \truthfulqa / \gptfivemini & attempted & +0.600 & [0.460, 0.740] & $2.0\times 10^{-7}$ & 50 \\
+        \truthfulqa / \gptfivemini & incorrect & +0.280 & [0.160, 0.400] & $7.7\times 10^{-4}$ & 50 \\
+        \bottomrule
+    \end{tabular}%
+    }
+\end{table}

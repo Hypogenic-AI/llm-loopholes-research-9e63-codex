@@ -1,0 +1,8 @@
+\section{Conclusion}
+\label{sec:conclusion}
+
+We examined whether large language models exploit an ``answer anyway'' loophole when they are uncertain or when a request is impossible to satisfy exactly. Across \simpleqa, \truthfulqa, and impossible \halogen false-presupposition prompts, the strongest effect appears on impossible structured requests. When abstention is forbidden, both tested models move to universal attempted compliance, and most of those attempts are fabricated.
+
+The broader claim requires nuance. On factual QA, loophole behavior is strongly model-dependent. \gptfivemini shows a clear abstention-versus-bluffing tradeoff, while \gptfourone mostly answers regardless of instruction. The main takeaway is that surface compliance can displace epistemic honesty, especially when prompts remove the abstention option.
+
+Future work should test more model families, include broader abstention-focused benchmarks, and compare prompt-only mitigation against external answer validation. That combination would help determine whether the loophole is best addressed by training, interface design, or system-level checks.

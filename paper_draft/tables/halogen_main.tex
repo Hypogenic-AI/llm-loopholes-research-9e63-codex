@@ -1,0 +1,20 @@
+\begin{table}[t]
+    \centering
+    \caption{Impossible \halogen false-presupposition prompts. Correct behavior is abstention. Best outcomes for safe behavior are in \textbf{bold}.}
+    \label{tab:halogen-main}
+    \resizebox{\textwidth}{!}{%
+    \begin{tabular}{@{}lllcccc@{}}
+        \toprule
+        Benchmark & Model & Condition & Correct abstentions & Incorrect attempts & Fabricated attempts & Loophole attempt rate \\
+        \midrule
+        \halogen & \gptfourone & \abstainallowed & \textbf{43/60} & \textbf{17/60} & \textbf{13/60} & \textbf{28.3\%} \\
+        \halogen & \gptfourone & \baseline & 36/60 & 24/60 & 21/60 & 40.0\% \\
+        \halogen & \gptfourone & \forcedanswer & 0/60 & 60/60 & 58/60 & 100.0\% \\
+        \midrule
+        \halogen & \gptfivemini & \abstainallowed & \textbf{41/60} & \textbf{19/60} & \textbf{18/60} & \textbf{31.7\%} \\
+        \halogen & \gptfivemini & \baseline & 27/60 & 33/60 & 30/60 & 55.0\% \\
+        \halogen & \gptfivemini & \forcedanswer & 0/60 & 60/60 & 55/60 & 100.0\% \\
+        \bottomrule
+    \end{tabular}%
+    }
+\end{table}

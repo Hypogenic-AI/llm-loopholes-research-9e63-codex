@@ -1,0 +1,32 @@
+\section{Results}
+\label{sec:results}
+
+\para{Impossible requests produce the strongest loophole effect.} \Tabref{tab:halogen-main} shows the clearest result in the paper. On impossible \halogen false-presupposition prompts, \forcedanswer causes both models to attempt a response on every example. Under \abstainallowed, \gptfourone abstains correctly on 43 of 60 prompts and \gptfivemini abstains correctly on 41 of 60. Under \forcedanswer, both models move to 60 of 60 attempted answers. Most of those answers are fabricated: 58 of 60 for \gptfourone and 55 of 60 for \gptfivemini. The paired risk differences are large and highly significant (\tabref{tab:stats-main}), with loophole-attempt increases of +0.717 and +0.683 and fabricated-attempt increases of +0.750 and +0.617.
+
+\input{tables/halogen_main}
+
+\para{Factual QA shows a strong model split.} \Tabref{tab:factual-results} summarizes \simpleqa and \truthfulqa. The pattern for \gptfourone is relatively stable across prompts. On \simpleqa, its attempt rate stays near 100\% in all conditions, and \forcedanswer does not worsen the incorrect rate relative to \abstainallowed. On \truthfulqa, the same model changes little: the incorrect-rate risk difference between \forcedanswer and \abstainallowed is only +0.02 and is not significant after correction.
+
+The pattern for \gptfivemini is much stronger. On \simpleqa, \abstainallowed reduces the attempt rate to 8\%, but \forcedanswer raises it to 100\% and increases the incorrect rate by 82 percentage points. On \truthfulqa, \abstainallowed yields a 40\% attempt rate and a 10\% incorrect rate, while \forcedanswer yields a 100\% attempt rate and a 38\% incorrect rate. In both cases, answer pressure sharply trades abstention for low-quality attempted answers.
+
+\input{tables/factual_results}
+
+\para{Statistical analysis confirms the main contrasts.} \Tabref{tab:stats-main} reports the primary paired tests. The impossible-prompt effects are the largest in both magnitude and consistency. The factual effects are concentrated in \gptfivemini, not \gptfourone. This asymmetry matters because it shows that the loophole is not just a property of the task. It also depends on model policy and instruction sensitivity.
+
+\input{tables/stat_tests}
+
+\begin{figure}[t]
+    \centering
+    \includegraphics[width=0.95\linewidth]{figures/factual_benchmark_rates.png}
+    \caption{Rates on \simpleqa and \truthfulqa across prompt conditions. The main pattern is the large abstention-versus-attempt tradeoff for \gptfivemini, especially under \abstainallowed versus \forcedanswer.}
+    \label{fig:factual-rates}
+\end{figure}
+
+\begin{figure}[t]
+    \centering
+    \includegraphics[width=0.95\linewidth]{figures/halogen_false_presupposition_rates.png}
+    \caption{Rates on impossible \halogen false-presupposition prompts. Both models move to 100\% loophole-attempt rates under \forcedanswer, and most of those attempts are fabricated.}
+    \label{fig:halogen-rates}
+\end{figure}
+
+\para{Failure modes.} We observe three recurring error patterns. First, models often fabricate exact-looking lists on impossible prompts. For example, when a prompt asks for planets that satisfy an impossible ending constraint, the model still returns a full planet list. Second, models sometimes produce pseudo-compliance through duplicated or padded items rather than a clean abstention. Third, on obscure \simpleqa items, especially for \gptfourone, the model often gives plausible but wrong factual specifics. These patterns support the same interpretation: when prompts reward visible compliance, models often satisfy the format of the request while violating its epistemic requirements.
